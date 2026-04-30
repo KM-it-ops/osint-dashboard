@@ -1,0 +1,199 @@
+/*
+
+This CSS file will be included with your plugin, and
+available in the app when your plugin is enabled.
+
+If your plugin does not need CSS, delete this file.
+
+*/
+
+.scribe-modal {
+  width: 40%;
+}
+
+.is-mobile .scribe-modal {
+  width: 90%;
+}
+
+.scribe-control-buttons {
+  margin: 3rem 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scribe-btn-grp {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.scribe-btn {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  width: "fit";
+  height: "fit";
+  padding: 15px;
+  border-radius: 14px;
+  margin: 0px 6px;
+  display: flex;
+  border: 2px solid;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #f5f5f5;
+}
+
+.scribe-btn-save {
+  border-color: #4bb543;
+}
+
+.scribe-btn-start {
+  border-color: #e42a2a;
+}
+
+.scribe-stop-watch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scribe-timer {
+  margin: 1rem 0;
+  width: 100%;
+  display: flex;
+  height: 12%;
+  justify-content: center;
+  align-items: center;
+}
+
+.scribe-timer-digits {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 3rem;
+  color: #bbb;
+}
+
+.scribe-timer-millis {
+  color: #e42a2a;
+}
+
+/* ControlButtons Styles */
+.scribe-active-buttons-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  justify-items: center;
+  align-items: center;
+}
+
+.scribe-buttons-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.scribe-control-buttons-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Add any additional styles for ScribeModal if needed */
+.scribe-modal-container {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+
+  hr {
+    margin: 5% 0%;
+  }
+}
+
+.scribe-settings-warning-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  h1,
+  h2 {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.scribe-settings-btn {
+  display: inline-block;
+  outline: 0;
+  border: none;
+  cursor: pointer;
+  height: 32px;
+  width: fit-content;
+  padding: 0px 16px;
+  border-radius: 50px;
+  background-color: #2222220d;
+  color: #222;
+  font-size: 12px;
+  font-weight: 500;
+  :hover {
+    background-color: #2222221a;
+  }
+}
+
+.scribe-options-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scribe-recording-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  label {
+    margin-bottom: 0.5em;
+  }
+}
+
+button[role="tab"].settings-tab {
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+button[role="tab"].settings-tab:hover {
+  background-color: var(--background-modifier-hover);
+}
+button[role="tab"][aria-selected="true"].settings-tab {
+  background-color: var(--background-modifier-hover);
+}
+
+nav[role="tabpanel"] {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 0 0 24px 0;
+}
+
+/* Recording notice indicator */
+.scribe-recording-notice {
+  cursor: pointer;
+  border-left: 3px solid #e42a2a;
+  padding-left: 8px;
+  animation: scribe-notice-pulse 2s ease-in-out infinite;
+  z-index: 1000;
+}
+
+@keyframes scribe-notice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
