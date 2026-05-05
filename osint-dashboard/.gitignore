@@ -1,0 +1,8 @@
+.venv/
+.env
+.firecrawl/
+__pycache__/
+*.py[cod]
+
+# Local SQLite dev database (schema comes from app/db.py)
+backend/data/osint.db
