@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KM-IT-Ops OSINT Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["DM Sans", "system-ui", "sans-serif"],
+              mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+            },
+            boxShadow: {
+              glow: "0 0 40px -10px rgba(56, 189, 248, 0.35)",
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.9/styles/vis-network.min.css" />
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  </head>
+  <body
+    class="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-cyan-500/30"
+  >
+    <!-- Ambient background -->
+    <div
+      class="pointer-events-none fixed inset-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="absolute -left-1/4 top-0 h-[36rem] w-[36rem] rounded-full bg-violet-600/20 blur-[120px]"
+      ></div>
+      <div
+        class="absolute -right-1/4 bottom-0 h-[28rem] w-[28rem] rounded-full bg-cyan-500/15 blur-[100px]"
+      ></div>
+      <div
+        class="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(15,23,42,0.85)_65%,rgb(2,6,23))]"
+      ></div>
+    </div>
+
+    <div class="relative mx-auto max-w-4xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <!-- Top bar -->
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p
+            class="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-400/90"
+          >
+            KM-IT-Ops · OSINT
+          </p>
+          <h1 class="mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Security dashboard
+          </h1>
+          <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+            Zero-day headlines from SQLite; run a <strong class="font-medium text-slate-300">Live Target Analyzer</strong>
+            search (domain or CVE) via Firecrawl web search — results are saved locally.
+          </p>
+        </div>
+        <div class="flex shrink-0 items-center gap-3">
+          <div class="relative" id="alerts-widget">
+            <button
+              type="button"
+              id="alerts-bell"
+              class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-300 ring-1 ring-white/5 transition hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+              aria-label="CVE alerts"
+              aria-expanded="false"
+              aria-controls="alerts-panel"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M14.857 17.082a23.848 23.848 0 005.454-1.082A2.02 2.02 0 0021 15.84V10.08c0-4.56-3.59-8.28-8.1-8.28a8.13 8.13 0 00-8.1 8.28v5.76a2.02 2.02 0 001.689 1.998 25.14 25.14 0 005.454 1.082m-4.27-8.242a4 4 0 01-4.03-4.03M15 17h.01"
+                />
+              </svg>
+              <span
+                id="alerts-badge"
+                class="pointer-events-none absolute -right-0.5 -top-0.5 hidden min-w-[1.125rem] rounded-full bg-rose-500 px-1 text-center font-mono text-[10px] font-semibold leading-tight text-white ring-2 ring-slate-950"
+                >0</span
+              >
+            </button>
+            <div
+              id="alerts-panel"
+              class="absolute right-0 z-50 mt-2 hidden w-[min(100vw-2rem,22rem)] max-h-[min(24rem,70vh)] overflow-hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-2xl shadow-black/50 ring-1 ring-white/10 backdrop-blur-xl"
+              role="region"
+              aria-label="Critical CVE alerts"
+            >
+              <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Alerts</p>
+                  <p class="font-mono text-[10px] text-slate-600">
+                    NVD Critical · <span id="alerts-last-poll" class="text-slate-500">—</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="alerts-close"
+                  class="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                >
+                  Close
+                </button>
+              </div>
+              <div id="alerts-empty" class="hidden px-4 py-8 text-center text-sm text-slate-500">
+                No critical CVE alerts yet. The server polls NVD periodically.
+              </div>
+              <ul id="alerts-list" class="max-h-[min(18rem,55vh)] divide-y divide-white/5 overflow-y-auto"></ul>
+            </div>
+          </div>
+          <span
+            id="connection-pill"
+            class="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300"
+          >
+            <span class="relative flex h-2 w-2">
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"
+              ></span>
+              <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
+            </span>
+            SQLite connected
+          </span>
+        </div>
+      </header>
+
+      <!-- Executive summary (aggregates SQLite) -->
+      <section
+        class="mt-8 overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-950/40 via-slate-900/50 to-slate-950/60 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-violet-500/10"
+        aria-labelledby="exec-summary-title"
+      >
+        <div
+          class="flex flex-col gap-3 border-b border-white/10 bg-gradient-to-r from-violet-950/60 to-transparent px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/20 ring-1 ring-violet-400/25"
+              aria-hidden="true"
+            >
+              <svg
+                class="h-5 w-5 text-violet-200"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="exec-summary-title" class="text-lg font-semibold text-white">Executive summary</h2>
+              <p class="mt-1 text-xs text-slate-400">
+                Auto-generated landscape view from local aggregates (
+                <code class="rounded bg-black/30 px-1 font-mono text-[10px] text-violet-200/90"
+                  >/api/intel/executive-summary</code
+                >, no LLM).
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-4 px-5 py-5 sm:px-6">
+          <p
+            id="exec-summary-loading"
+            class="text-sm text-slate-500"
+            role="status"
+          >
+            Loading summary…
+          </p>
+          <p id="exec-summary-error" class="hidden text-sm text-rose-200" role="alert"></p>
+          <div id="exec-summary-body" class="hidden space-y-4">
+            <p id="exec-summary-text" class="text-sm leading-relaxed text-slate-200"></p>
+            <div>
+              <p class="font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                Key metrics
+              </p>
+              <ul
+                id="exec-summary-metrics"
+                class="mt-2 grid gap-2 sm:grid-cols-2"
+              ></ul>
+            </div>
+            <p class="font-mono text-[10px] text-slate-600">
+              <span id="exec-summary-generated"></span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Target Analyzer -->
+      <section
+        class="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-lta-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/25 to-violet-600/10 ring-1 ring-cyan-500/20"
+            >
+              <svg
+                class="h-5 w-5 text-cyan-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-lta-title" class="text-lg font-semibold text-white">Live Target Analyzer</h2>
+              <p class="mt-1 text-xs text-slate-500">
+                Enter a domain (e.g. <span class="font-mono text-slate-400">example.com</span>) or CVE ID. Uses Firecrawl
+                web search; stores intelligence in SQLite.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4 px-5 py-5 sm:px-6">
+          <form id="lta-form" class="flex flex-col gap-3 sm:flex-row sm:items-stretch" autocomplete="off">
+            <label class="sr-only" for="lta-input">Target</label>
+            <input
+              id="lta-input"
+              name="target"
+              type="text"
+              maxlength="256"
+              placeholder="Domain or CVE (e.g. CVE-2024-6387 or example.com)"
+              class="min-h-[44px] flex-1 rounded-xl border border-white/10 bg-slate-950/50 px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+            />
+            <button
+              type="submit"
+              id="lta-submit"
+              class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-5 py-2.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Analyze
+            </button>
+          </form>
+          <p id="lta-status" class="hidden text-xs text-slate-500" role="status"></p>
+          <p id="lta-error" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"></p>
+
+          <div
+            id="lta-report"
+            class="hidden rounded-xl border border-white/10 bg-slate-950/40 p-4 ring-1 ring-white/5"
+          >
+            <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/5 pb-3">
+              <div>
+                <p class="font-mono text-xs uppercase tracking-wider text-slate-500">Target</p>
+                <p id="lta-report-target" class="text-lg font-semibold text-white"></p>
+              </div>
+              <div class="text-right">
+                <p class="font-mono text-xs uppercase tracking-wider text-slate-500">Type</p>
+                <p id="lta-report-type" class="font-mono text-sm text-cyan-300"></p>
+              </div>
+            </div>
+            <p class="mt-3 font-mono text-[11px] text-slate-500">
+              Query: <span id="lta-report-query" class="text-slate-400"></span>
+            </p>
+            <p class="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-500">
+              <span
+                >Saved id <span id="lta-report-id" class="text-slate-400"></span> ·
+                <span id="lta-report-time"></span></span
+              >
+              <a
+                id="lta-download-pdf"
+                href="#"
+                class="hidden inline-flex items-center rounded-md border border-cyan-500/35 bg-cyan-500/10 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-cyan-200 no-underline transition hover:bg-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                download
+                >Download PDF</a
+              >
+            </p>
+            <div class="mt-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Summary</p>
+              <p id="lta-report-summary" class="mt-1 text-sm leading-relaxed text-slate-300"></p>
+            </div>
+            <div class="mt-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Key findings</p>
+              <ul id="lta-report-findings" class="mt-2 list-inside list-disc space-y-1 text-sm text-slate-300"></ul>
+            </div>
+            <div class="mt-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sources</p>
+              <ul id="lta-report-sources" class="mt-3 divide-y divide-white/5"></ul>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recent analyses</p>
+            <ul class="mt-2 space-y-2" id="lta-recent-list">
+              {% for r in recent_reports %}
+              <li
+                class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-slate-950/30 px-3 py-2 text-sm"
+              >
+                <span class="min-w-0 flex-1 font-mono text-slate-200">{{ r.target_raw }}</span>
+                <span class="font-mono text-xs text-slate-500"
+                  >{{ r.target_type }} · {{ r.created_at }}</span
+                >
+                <a
+                  href="/api/report/pdf/{{ r.id }}"
+                  download="intel-report-{{ r.id }}.pdf"
+                  class="shrink-0 rounded-md border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-300 no-underline transition hover:border-cyan-500/45 hover:bg-cyan-500/15"
+                  >PDF</a
+                >
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- CVE matcher: NVD API 2.0 + SQLite cache -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-cve-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-600/10 ring-1 ring-amber-500/20"
+            >
+              <svg
+                class="h-5 w-5 text-amber-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h67.5c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-cve-title" class="text-lg font-semibold text-white">CVE matcher (NVD)</h2>
+              <p class="mt-1 max-w-xl text-xs text-slate-500">
+                Live lookup via <strong class="font-medium text-slate-400">NVD JSON 2.0</strong> — paste a CVE ID or keyword string. Responses are cached in SQLite (
+                <code class="font-mono text-slate-400">cve_cache</code>). Optional higher quota:
+                <code class="font-mono text-slate-400">NVD_API_KEY</code>.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="cve-use-lta-btn"
+            class="inline-flex min-h-[36px] shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-amber-500/35 hover:bg-amber-500/10 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+          >
+            Use analyzer input
+          </button>
+        </div>
+        <div class="space-y-4 px-5 py-5 sm:px-6">
+          <form id="cve-match-form" class="flex flex-col gap-3 sm:flex-row sm:items-stretch" autocomplete="off">
+            <label class="sr-only" for="cve-match-input">CVE or keyword</label>
+            <input
+              id="cve-match-input"
+              name="target"
+              type="text"
+              maxlength="512"
+              placeholder="CVE-2024-6387 or keyword (e.g. OpenSSH remote)"
+              class="min-h-[44px] flex-1 rounded-xl border border-white/10 bg-slate-950/50 px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-amber-500/45 focus:outline-none focus:ring-2 focus:ring-amber-500/25"
+            />
+            <button
+              type="submit"
+              id="cve-match-submit"
+              class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/15 px-5 py-2.5 text-sm font-medium text-amber-100 transition hover:bg-amber-500/25 focus:outline-none focus:ring-2 focus:ring-amber-500/45 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Match CVEs
+            </button>
+          </form>
+          <p id="cve-match-status" class="hidden text-xs text-slate-500" role="status"></p>
+          <p
+            id="cve-match-error"
+            class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          ></p>
+          <div class="overflow-x-auto rounded-xl border border-white/10 bg-slate-950/40 ring-1 ring-white/5">
+            <table class="min-w-full divide-y divide-white/10 text-left text-sm" aria-label="CVE matches">
+              <thead class="font-mono text-[11px] uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th scope="col" class="px-4 py-3">CVE ID</th>
+                  <th scope="col" class="px-4 py-3">Severity</th>
+                  <th scope="col" class="px-4 py-3">Summary</th>
+                  <th scope="col" class="px-4 py-3">Source</th>
+                </tr>
+              </thead>
+              <tbody id="cve-match-tbody" class="divide-y divide-white/5 text-slate-300">
+                <tr id="cve-match-placeholder-row">
+                  <td colspan="4" class="px-4 py-8 text-center text-slate-500">
+                    Enter a CVE id or keyword, then choose <strong class="font-medium text-slate-400">Match CVEs</strong>.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="cve-match-empty" class="hidden text-center text-sm text-slate-500">
+            No NVD rows for this query. Try a CVE id or broader keyword.
+          </p>
+          <div id="cve-related-wrap" class="hidden">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Related saved reports</p>
+            <ul id="cve-related-list" class="mt-2 space-y-1 text-sm text-slate-400"></ul>
+          </div>
+          <p class="font-mono text-[11px] text-slate-600">
+            Endpoint: <a href="/api/cve/match?target=CVE-2021-44228" class="text-cyan-400/90 hover:underline">/api/cve/match</a>
+            · Run id shown in JSON only
+          </p>
+        </div>
+      </section>
+
+      <!-- Advisory intelligence (ethical public advisory scope — no illicit queries) -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-advisory-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/25 to-indigo-600/10 ring-1 ring-violet-500/20"
+            >
+              <svg
+                class="h-5 w-5 text-violet-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-advisory-title" class="text-lg font-semibold text-white">Advisory intelligence</h2>
+              <p class="mt-1 max-w-xl text-xs text-slate-500">
+                Latest saved searches over <strong class="font-medium text-slate-400">public</strong> sources (CISA, NVD, CERT/CC, vendor advisories) via Firecrawl. No dark-web or illicit scope.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 sm:shrink-0 sm:items-end">
+            <label class="sr-only" for="intel-focus-input">Optional focus</label>
+            <input
+              id="intel-focus-input"
+              type="text"
+              maxlength="128"
+              placeholder="Optional focus (CVE or keyword)"
+              class="w-full min-w-[12rem] rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 font-mono text-xs text-slate-200 placeholder:text-slate-600 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/30 sm:w-56"
+              autocomplete="off"
+            />
+            <button
+              type="button"
+              id="intel-refresh-btn"
+              class="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-violet-500/35 bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-100 transition hover:bg-violet-500/25 focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              <svg
+                class="h-4 w-4 text-violet-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0013.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+              Refresh from public sources
+            </button>
+          </div>
+        </div>
+        <div class="px-5 py-4 sm:px-6">
+          <p id="intel-advisory-status" class="hidden text-xs text-slate-500" role="status"></p>
+          <p
+            id="intel-advisory-error"
+            class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          ></p>
+          <ul id="intel-snapshot-list" class="mt-2 space-y-2" role="list">
+            {% if intel_snapshots %}
+            {% for s in intel_snapshots %}
+            <li
+              class="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-white/5 bg-slate-950/30 px-3 py-2 text-sm"
+            >
+              <span class="font-medium text-slate-200">{{ s.query_label }}</span>
+              <span class="font-mono text-xs text-slate-500"
+                >{{ s.result_count }} hits · {{ s.created_at }}</span
+              >
+            </li>
+            {% endfor %}
+            {% else %}
+            <li class="list-none">
+              <p class="rounded-lg border border-dashed border-white/10 bg-slate-950/30 px-4 py-8 text-center text-sm text-slate-500">
+                No advisory snapshots yet. Set <code class="font-mono text-slate-400">FIRECRAWL_API_KEY</code> and use
+                <strong class="text-slate-400">Refresh from public sources</strong>.
+              </p>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </section>
+
+      <!-- Intel relationship graph (vis-network; data from graph_* tables) -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-intel-graph-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-600/10 ring-1 ring-cyan-500/20"
+            >
+              <svg
+                class="h-5 w-5 text-cyan-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <circle cx="8" cy="8" r="3" />
+                <circle cx="16" cy="6" r="2.5" />
+                <circle cx="14" cy="16" r="2.5" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 9.5l3-2M12 11l1.5 4M9.2 9.8l-2.2 3.7" />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-intel-graph-title" class="text-lg font-semibold text-white">Relationship graph</h2>
+              <p class="mt-1 max-w-xl text-xs text-slate-500">
+                Targets, IPs, domains, and CVE mentions from saved analyzer reports
+                (<code class="font-mono text-slate-400">GET /api/graph</code>). Recompute from SQLite with
+                <code class="font-mono text-slate-400">POST /api/graph/rebuild</code>.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 sm:justify-end">
+            <button
+              type="button"
+              id="intel-graph-rebuild-btn"
+              class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Rebuild graph
+            </button>
+            <button
+              type="button"
+              id="intel-graph-reload-btn"
+              class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-500/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            >
+              Reload layout
+            </button>
+          </div>
+        </div>
+        <div class="space-y-3 px-4 pb-5 pt-4 sm:px-6">
+          <p id="intel-graph-status" class="hidden font-mono text-[11px] text-slate-500" role="status"></p>
+          <p
+            id="intel-graph-error"
+            class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          ></p>
+          <div
+            id="intel-graph"
+            class="min-h-[22rem] w-full rounded-xl border border-white/10 bg-[#020617] ring-1 ring-white/5 sm:min-h-[28rem]"
+            role="application"
+            aria-label="Intel relationship graph canvas"
+          ></div>
+          <p class="font-mono text-[10px] text-slate-600">
+            Drag nodes, scroll to zoom · physics on · cyan = report · violet = domain · gold = IP · rose = CVE
+          </p>
+        </div>
+      </section>
+
+      <!-- Surface-web exploit chatter (Firecrawl; upsert by URL) -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-social-intel-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/25 to-fuchsia-600/10 ring-1 ring-rose-500/20"
+            >
+              <svg
+                class="h-5 w-5 text-rose-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.743.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-social-intel-title" class="text-lg font-semibold text-white">
+                Social threat monitor
+              </h2>
+              <p class="mt-1 max-w-xl text-xs text-slate-500">
+                <strong class="font-medium text-slate-400">Surface-web</strong> discussion of zero-days and exploits via Firecrawl (public indexes only — not private social APIs). Rows are keyed by URL; ingestion time is stored as
+                <code class="font-mono text-slate-400">created_at</code>.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="social-feed-refresh-btn"
+            class="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-lg border border-rose-500/35 bg-rose-500/15 px-4 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/25 focus:outline-none focus:ring-2 focus:ring-rose-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <svg
+              class="h-4 w-4 text-rose-300"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0013.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
+            </svg>
+            Refresh from web
+          </button>
+        </div>
+        <div class="space-y-3 px-5 py-4 sm:px-6">
+          <p id="social-feed-poll-note" class="font-mono text-[11px] text-slate-600">
+            Auto poll <code class="text-slate-500">GET /api/intel/social-feed</code> every 120s · manual runs Firecrawl ingest
+          </p>
+          <p id="social-feed-status" class="hidden text-xs text-slate-500" role="status"></p>
+          <p
+            id="social-feed-error"
+            class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          ></p>
+          <ul
+            id="social-feed-list"
+            class="divide-y divide-white/5 rounded-xl border border-white/10 bg-slate-950/30 ring-1 ring-white/5"
+            role="list"
+            aria-live="polite"
+          >
+            {% if social_intel_items %}
+            {% for it in social_intel_items %}
+            <li>
+              <a
+                href="{{ it.url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex flex-col gap-1 px-4 py-3 transition hover:bg-white/[0.04] sm:flex-row sm:items-start sm:gap-4"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-[15px] font-medium leading-snug text-slate-100 group-hover:text-white">{{ it.title }}</p>
+                  {% if it.snippet %}
+                  <p class="mt-1 text-xs leading-relaxed text-slate-500">{{ it.snippet }}</p>
+                  {% endif %}
+                  <p class="mt-1 truncate font-mono text-[11px] text-slate-600">{{ it.url }}</p>
+                </div>
+                <div class="shrink-0 text-right font-mono text-[10px] uppercase tracking-wide text-slate-600 sm:max-w-[12rem]">
+                  {% if it.published_hint %}<span class="block text-rose-300/90">{{ it.published_hint }}</span>{% endif %}
+                  <span class="block">{{ it.created_at }}</span>
+                </div>
+              </a>
+            </li>
+            {% endfor %}
+            {% else %}
+            <li class="list-none">
+              <p class="rounded-lg px-4 py-10 text-center text-sm text-slate-500">
+                No chatter items yet — set <code class="font-mono text-slate-400">FIRECRAWL_API_KEY</code> and tap
+                <strong class="text-slate-400">Refresh from web</strong>.
+              </p>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </section>
+
+      <!-- Live threat map: GeoJSON markers on equirectangular SVG -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-threat-map-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/20 to-cyan-500/10 ring-1 ring-rose-500/15"
+            >
+              <svg
+                class="h-5 w-5 text-rose-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 id="widget-threat-map-title" class="text-lg font-semibold text-white">Live threat map</h2>
+              <p class="mt-1 max-w-xl text-xs text-slate-500">
+                Recent geo-tagged events from SQLite (<code class="font-mono text-slate-400">/api/threat-map/events</code>).
+                Projection: flat equirectangular; dots scale by severity.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="threat-map-refresh"
+            class="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-slate-200 transition hover:border-cyan-500/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+          >
+            <svg
+              class="h-4 w-4 text-cyan-400/90"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0013.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
+            </svg>
+            Reload markers
+          </button>
+        </div>
+        <div class="px-4 pb-5 pt-4 sm:px-6">
+          <p id="threat-map-status" class="mb-2 hidden text-xs text-slate-500" role="status"></p>
+          <p
+            id="threat-map-error"
+            class="mb-2 hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          ></p>
+          <div
+            class="relative overflow-hidden rounded-xl border border-white/10 bg-slate-950/50 ring-1 ring-white/5"
+            role="img"
+            aria-label="World map with threat severity markers"
+          >
+            <svg
+              id="threat-map-svg"
+              viewBox="0 0 1000 500"
+              class="h-auto w-full text-slate-500"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <linearGradient id="threat-map-ocean" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="rgb(15 23 42)" stop-opacity="1" />
+                  <stop offset="100%" stop-color="rgb(2 6 23)" stop-opacity="1" />
+                </linearGradient>
+              </defs>
+              <rect width="1000" height="500" fill="url(#threat-map-ocean)" stroke="rgba(148,163,184,0.15)" stroke-width="1" />
+              <!-- Graticule -->
+              <g stroke="currentColor" stroke-width="0.5" opacity="0.2" fill="none" aria-hidden="true">
+                <line x1="0" x2="1000" y1="250" y2="250" />
+                <line x1="500" x2="500" y1="0" y2="500" />
+                <line x1="250" x2="250" y1="0" y2="500" stroke-opacity="0.12" />
+                <line x1="750" x2="750" y1="0" y2="500" stroke-opacity="0.12" />
+              </g>
+              <text x="980" y="485" fill="rgba(148,163,184,0.55)" font-size="22" font-family="JetBrains Mono, monospace" text-anchor="end">
+                KM-IT-Ops
+              </text>
+              <g id="threat-map-markers" />
+            </svg>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <span class="font-mono uppercase tracking-wider text-slate-600">Severity</span>
+            <span class="inline-flex items-center gap-1.5"
+              ><span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900"></span> Low</span
+            >
+            <span class="inline-flex items-center gap-1.5"
+              ><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-slate-900"></span> Medium</span
+            >
+            <span class="inline-flex items-center gap-1.5"
+              ><span class="inline-block h-2.5 w-2.5 rounded-full bg-rose-400 ring-2 ring-slate-900"></span> High</span
+            >
+            <span id="threat-map-count" class="ml-auto font-mono text-[11px] text-slate-600"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Zero-day widget: headlines from SQLite via FastAPI -->
+      <section
+        class="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 shadow-glow shadow-black/40 backdrop-blur-xl ring-1 ring-white/5"
+        aria-labelledby="widget-zero-day-title"
+      >
+        <div
+          class="flex flex-col gap-4 border-b border-white/5 bg-gradient-to-r from-slate-900/80 to-slate-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/25 to-orange-600/10 ring-1 ring-amber-500/20"
+            >
+              <!-- shield / alert icon -->
+              <svg
+                class="h-5 w-5 text-amber-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.008H12v-.008Z"
+                />
+              </svg>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 id="widget-zero-day-title" class="text-lg font-semibold text-white">
+                  {{ feed_topic }}
+                </h2>
+                <span
+                  class="rounded-md bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-slate-400 ring-1 ring-white/10"
+                  >Live feed</span
+                >
+              </div>
+              <div
+                id="feed-meta"
+                class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500"
+              >
+                {% if feed_updated %}
+                <span id="feed-updated">Updated {{ feed_updated }}</span>
+                {% endif %}
+                {% if feed_note %}
+                <span class="hidden sm:inline" aria-hidden="true">·</span>
+                <span id="feed-note" class="max-w-prose leading-snug">{{ feed_note }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 sm:shrink-0">
+            <button
+              type="button"
+              id="btn-refresh"
+              class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 shadow-sm transition hover:border-cyan-500/40 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            >
+              <svg
+                class="h-4 w-4 text-cyan-400/90"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0013.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+              Refresh
+            </button>
+            <a
+              href="/api/headlines"
+              class="hidden rounded-lg border border-transparent px-2 py-2 text-xs text-slate-500 underline-offset-4 hover:text-cyan-400/90 hover:underline sm:inline"
+              >/api/headlines</a
+            >
+          </div>
+        </div>
+
+        <div class="px-2 py-2 sm:px-4 sm:py-4">
+          <ul id="headline-list" class="divide-y divide-white/5" role="list">
+            {% if headlines %}
+            {% for item in headlines %}
+            <li>
+              <a
+                href="{{ item.url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex gap-4 rounded-xl px-3 py-3.5 transition sm:px-4 sm:py-4 hover:bg-white/[0.04]"
+              >
+                <span
+                  class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 font-mono text-xs font-medium text-slate-500 ring-1 ring-white/5 group-hover:bg-cyan-500/10 group-hover:text-cyan-300 group-hover:ring-cyan-500/25"
+                  >{{ '%02d' % loop.index }}</span
+                >
+                <div class="min-w-0 flex-1">
+                  <p
+                    class="text-[15px] font-medium leading-snug text-slate-100 transition group-hover:text-white"
+                  >
+                    {{ item.title }}
+                  </p>
+                  <p
+                    class="mt-1 truncate font-mono text-[11px] text-slate-500 group-hover:text-slate-400"
+                  >
+                    {{ item.url }}
+                  </p>
+                </div>
+                <span
+                  class="mt-1 hidden shrink-0 text-slate-600 transition group-hover:text-cyan-400 sm:block"
+                  aria-hidden="true"
+                >
+                  <svg
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                    />
+                  </svg>
+                </span>
+              </a>
+            </li>
+            {% endfor %}
+            {% else %}
+            <li class="list-none">
+              <div
+                class="rounded-xl border border-dashed border-white/10 bg-slate-950/40 px-4 py-12 text-center"
+              >
+                <p class="text-sm text-slate-400">
+                  No headlines in SQLite yet. Seed
+                  <code
+                    class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-300"
+                    >zero_day_headlines.json</code
+                  >
+                  or import via
+                  <code class="font-mono text-xs text-slate-300">app/db.py</code>, then restart.
+                </p>
+              </div>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+
+        <footer
+          class="border-t border-white/5 bg-slate-950/30 px-5 py-3 text-center text-[11px] text-slate-600 sm:px-6"
+        >
+          <span id="status-line">Rendered from server · Data source: SQLite</span>
+        </footer>
+      </section>
+
+      <p class="mt-8 text-center text-xs text-slate-600">
+        KM-IT-Ops OSINT Dashboard · Educational scaffold
+      </p>
+    </div>
+
+    <script>
+      (function () {
+        const btn = document.getElementById("btn-refresh");
+        const list = document.getElementById("headline-list");
+        const status = document.getElementById("status-line");
+        const feedUpdated = document.getElementById("feed-updated");
+        const feedNote = document.getElementById("feed-note");
+        const meta = document.getElementById("feed-meta");
+
+        if (!btn || !list) return;
+
+        function esc(s) {
+          const d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        btn.addEventListener("click", async function () {
+          btn.disabled = true;
+          btn.classList.add("opacity-60");
+          status.textContent = "Refreshing from /api/headlines…";
+          try {
+            const res = await fetch("/api/headlines", { cache: "no-store" });
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            const items = data.headlines || [];
+
+            list.innerHTML = items
+              .map(function (item, i) {
+                const n = String(i + 1).padStart(2, "0");
+                return (
+                  '<li><a href="' +
+                  esc(item.url) +
+                  '" target="_blank" rel="noopener noreferrer" class="group flex gap-4 rounded-xl px-3 py-3.5 transition sm:px-4 sm:py-4 hover:bg-white/[0.04]">' +
+                  '<span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 font-mono text-xs font-medium text-slate-500 ring-1 ring-white/5 group-hover:bg-cyan-500/10 group-hover:text-cyan-300 group-hover:ring-cyan-500/25">' +
+                  n +
+                  "</span>" +
+                  '<div class="min-w-0 flex-1"><p class="text-[15px] font-medium leading-snug text-slate-100 transition group-hover:text-white">' +
+                  esc(item.title) +
+                  '</p><p class="mt-1 truncate font-mono text-[11px] text-slate-500 group-hover:text-slate-400">' +
+                  esc(item.url) +
+                  "</p></div>" +
+                  '<span class="mt-1 hidden shrink-0 text-slate-600 transition group-hover:text-cyan-400 sm:block" aria-hidden="true">' +
+                  '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>' +
+                  "</span></a></li>"
+                );
+              })
+              .join("");
+
+            if (feedUpdated && data.updated_at) {
+              feedUpdated.textContent = "Updated " + data.updated_at;
+            }
+            if (feedNote && data.source_note != null) {
+              feedNote.textContent = data.source_note;
+            }
+            status.textContent =
+              "Last refreshed " +
+              new Date().toLocaleTimeString() +
+              " · SQLite via API";
+          } catch (e) {
+            status.textContent = "Refresh failed — check the server.";
+            console.error(e);
+          } finally {
+            btn.disabled = false;
+            btn.classList.remove("opacity-60");
+          }
+        });
+      })();
+
+      (function () {
+        const btn = document.getElementById("intel-refresh-btn");
+        const list = document.getElementById("intel-snapshot-list");
+        const status = document.getElementById("intel-advisory-status");
+        const err = document.getElementById("intel-advisory-error");
+        const focusInput = document.getElementById("intel-focus-input");
+
+        if (!btn || !list) return;
+
+        function esc(s) {
+          const d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        function showError(msg) {
+          if (err) {
+            err.textContent = msg;
+            err.classList.remove("hidden");
+          }
+        }
+        function clearError() {
+          if (err) {
+            err.textContent = "";
+            err.classList.add("hidden");
+          }
+        }
+
+        function renderSnapshots(items) {
+          if (!items || !items.length) {
+            list.innerHTML =
+              '<li class="list-none"><p class="rounded-lg border border-dashed border-white/10 bg-slate-950/30 px-4 py-8 text-center text-sm text-slate-500">No snapshots returned.</p></li>';
+            return;
+          }
+          list.innerHTML = items
+            .map(function (s) {
+              const hits = s.result_count != null ? s.result_count : 0;
+              const when = s.created_at || "";
+              return (
+                '<li class="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-white/5 bg-slate-950/30 px-3 py-2 text-sm">' +
+                '<span class="font-medium text-slate-200">' +
+                esc(s.query_label || "") +
+                '</span><span class="font-mono text-xs text-slate-500">' +
+                esc(String(hits) + " hits · " + when) +
+                "</span></li>"
+              );
+            })
+            .join("");
+        }
+
+        btn.addEventListener("click", async function () {
+          clearError();
+          btn.disabled = true;
+          btn.classList.add("opacity-60");
+          if (status) {
+            status.textContent = "Querying public advisories via Firecrawl…";
+            status.classList.remove("hidden");
+          }
+          try {
+            var focusRaw = focusInput ? (focusInput.value || "").trim() : "";
+            var bodyPayload = {};
+            if (focusRaw) bodyPayload.focus = focusRaw;
+            const res = await fetch("/api/intel/scrape-advisories", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify(bodyPayload),
+            });
+            const payload = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) {
+              var det = payload.detail;
+              var msg =
+                typeof det === "string"
+                  ? det
+                  : Array.isArray(det)
+                    ? det.map(function (x) {
+                        return x.msg || JSON.stringify(x);
+                      }).join("; ")
+                    : res.statusText || "Request failed";
+              showError(msg);
+              return;
+            }
+            const snapRes = await fetch("/api/intel/snapshots?limit=8", { cache: "no-store" });
+            if (!snapRes.ok) throw new Error(snapRes.statusText);
+            const snapData = await snapRes.json();
+            renderSnapshots(snapData.snapshots || []);
+            if (status) {
+              var n = payload.count != null ? payload.count : 0;
+              status.textContent = "Saved " + n + " snapshot batch(es) · updated " + new Date().toLocaleTimeString();
+            }
+          } catch (e) {
+            showError("Network or server error — check API key and connectivity.");
+            console.error(e);
+          } finally {
+            btn.disabled = false;
+            btn.classList.remove("opacity-60");
+          }
+        });
+      })();
+
+      (function () {
+        var listEl = document.getElementById("social-feed-list");
+        var btn = document.getElementById("social-feed-refresh-btn");
+        var status = document.getElementById("social-feed-status");
+        var errEl = document.getElementById("social-feed-error");
+        if (!listEl) return;
+
+        function esc(s) {
+          var d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        function showError(msg) {
+          if (errEl) {
+            errEl.textContent = msg;
+            errEl.classList.remove("hidden");
+          }
+        }
+        function clearError() {
+          if (errEl) {
+            errEl.textContent = "";
+            errEl.classList.add("hidden");
+          }
+        }
+
+        function render(items) {
+          if (!items || !items.length) {
+            listEl.innerHTML =
+              '<li class="list-none"><p class="rounded-lg px-4 py-10 text-center text-sm text-slate-500">No items returned.</p></li>';
+            return;
+          }
+          listEl.innerHTML = items
+            .map(function (it) {
+              var snippet = it.snippet
+                ? '<p class="mt-1 text-xs leading-relaxed text-slate-500">' + esc(it.snippet) + "</p>"
+                : "";
+              var hint =
+                it.published_hint && it.published_hint.length
+                  ? '<span class="block text-rose-300/90">' + esc(it.published_hint) + "</span>"
+                  : "";
+              var when = it.created_at || "";
+              return (
+                "<li><a href=\"" +
+                esc(it.url || "#") +
+                "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"group flex flex-col gap-1 px-4 py-3 transition hover:bg-white/[0.04] sm:flex-row sm:items-start sm:gap-4\">" +
+                "<div class=\"min-w-0 flex-1\">" +
+                "<p class=\"text-[15px] font-medium leading-snug text-slate-100 group-hover:text-white\">" +
+                esc(it.title || "Untitled") +
+                "</p>" +
+                snippet +
+                '<p class="mt-1 truncate font-mono text-[11px] text-slate-600">' +
+                esc(it.url || "") +
+                "</p></div>" +
+                '<div class="shrink-0 text-right font-mono text-[10px] uppercase tracking-wide text-slate-600 sm:max-w-[12rem]">' +
+                hint +
+                '<span class="block">' +
+                esc(when) +
+                "</span></div></a></li>"
+              );
+            })
+            .join("");
+        }
+
+        async function pollFeed(isManualStatus) {
+          clearError();
+          if (status && isManualStatus) {
+            status.textContent = "Fetching social feed…";
+            status.classList.remove("hidden");
+          }
+          try {
+            var res = await fetch("/api/intel/social-feed?limit=25", { cache: "no-store" });
+            if (!res.ok) throw new Error(res.statusText);
+            var data = await res.json();
+            render(data.items || []);
+            if (status && isManualStatus) {
+              status.textContent =
+                "Updated " +
+                new Date().toLocaleTimeString() +
+                " · " +
+                (data.items || []).length +
+                " item(s)";
+            }
+          } catch (e) {
+            if (status && isManualStatus) {
+              status.classList.add("hidden");
+            }
+            showError("Could not load social feed.");
+            console.error(e);
+          }
+        }
+
+        async function ingestAndReload() {
+          clearError();
+          if (btn) {
+            btn.disabled = true;
+            btn.classList.add("opacity-60");
+          }
+          if (status) {
+            status.textContent = "Running Firecrawl searches…";
+            status.classList.remove("hidden");
+          }
+          try {
+            var res = await fetch("/api/intel/refresh-social-feed", {
+              method: "POST",
+              headers: { Accept: "application/json" },
+            });
+            var payload = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) {
+              var det = payload.detail;
+              var msg =
+                typeof det === "string"
+                  ? det
+                  : Array.isArray(det)
+                    ? det
+                        .map(function (x) {
+                          return x.msg || JSON.stringify(x);
+                        })
+                        .join("; ")
+                    : res.statusText || "Request failed";
+              showError(msg);
+              return;
+            }
+            if (status) {
+              var n = payload.items_upserted != null ? payload.items_upserted : 0;
+              status.textContent =
+                "Ingested " +
+                n +
+                " hit(s) across " +
+                (payload.queries_run || 0) +
+                " queries · " +
+                new Date().toLocaleTimeString();
+            }
+            await pollFeed(false);
+          } catch (e) {
+            showError("Network error during ingest.");
+            console.error(e);
+          } finally {
+            if (btn) {
+              btn.disabled = false;
+              btn.classList.remove("opacity-60");
+            }
+          }
+        }
+
+        setInterval(function () {
+          pollFeed(false);
+        }, 120000);
+
+        if (btn) btn.addEventListener("click", ingestAndReload);
+
+        pollFeed(true);
+      })();
+
+      (function () {
+        var loadingEl = document.getElementById("exec-summary-loading");
+        var bodyEl = document.getElementById("exec-summary-body");
+        var errEl = document.getElementById("exec-summary-error");
+        var textEl = document.getElementById("exec-summary-text");
+        var listEl = document.getElementById("exec-summary-metrics");
+        var genEl = document.getElementById("exec-summary-generated");
+        if (!textEl || !listEl || !loadingEl || !bodyEl) return;
+
+        function esc(s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        }
+
+        function metricRow(label, value) {
+          return (
+            '<li class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2 ring-1 ring-white/5">' +
+            '<span class="text-xs text-slate-400">' +
+            esc(label) +
+            "</span>" +
+            '<span class="font-mono text-sm font-semibold text-violet-200">' +
+            esc(String(value != null ? value : "—")) +
+            "</span></li>"
+          );
+        }
+
+        async function loadExecSummary() {
+          if (errEl) {
+            errEl.textContent = "";
+            errEl.classList.add("hidden");
+          }
+          loadingEl.classList.remove("hidden");
+          bodyEl.classList.add("hidden");
+          try {
+            var res = await fetch("/api/intel/executive-summary", {
+              cache: "no-store",
+              headers: { Accept: "application/json" },
+            });
+            if (!res.ok) throw new Error(res.statusText || String(res.status));
+            var data = await res.json();
+            var s = data.stats || {};
+            if (textEl) textEl.textContent = data.text || "";
+            if (genEl) {
+              genEl.textContent = data.generated_at
+                ? "Generated (UTC ISO): " + data.generated_at
+                : "";
+            }
+
+            listEl.innerHTML = [
+              ["Zero-day headlines", s.zero_day_headlines],
+              ["Target intelligence reports", s.target_reports],
+              ["Advisory snapshots", s.advisory_snapshots],
+              ["Geo threat markers", s.geo_threat_events],
+              ["Social intel items", s.social_intel_items],
+              ["CVE records cached", s.cve_cached],
+              ["CVE matcher runs logged", s.cve_match_runs],
+              ["CVE alerts (total)", s.cve_alerts],
+              ["CVE alerts unread", s.cve_alerts_unread],
+              ["Critical CVE alerts unread", s.cve_alerts_critical_unread],
+              ["Graph nodes", s.graph_nodes],
+              ["Graph edges", s.graph_edges],
+            ]
+              .map(function (pair) {
+                return metricRow(pair[0], pair[1]);
+              })
+              .join("");
+            loadingEl.classList.add("hidden");
+            bodyEl.classList.remove("hidden");
+          } catch (e) {
+            loadingEl.classList.add("hidden");
+            bodyEl.classList.add("hidden");
+            if (errEl) {
+              errEl.textContent = "Could not load executive summary — check that the API is reachable.";
+              errEl.classList.remove("hidden");
+            }
+            console.error(e);
+          }
+        }
+
+        window.__refreshExecSummary = loadExecSummary;
+        loadExecSummary();
+        setInterval(loadExecSummary, 180000);
+      })();
+
+      (function () {
+        var bell = document.getElementById("alerts-bell");
+        var panel = document.getElementById("alerts-panel");
+        var badge = document.getElementById("alerts-badge");
+        var listEl = document.getElementById("alerts-list");
+        var emptyEl = document.getElementById("alerts-empty");
+        var closeBtn = document.getElementById("alerts-close");
+        var lastPollEl = document.getElementById("alerts-last-poll");
+        var widget = document.getElementById("alerts-widget");
+        if (!bell || !panel) return;
+
+        function esc(s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        }
+
+        function setOpen(open) {
+          panel.classList.toggle("hidden", !open);
+          bell.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+
+        function updateBadge(n) {
+          if (!badge) return;
+          if (n > 0) {
+            badge.textContent = n > 99 ? "99+" : String(n);
+            badge.classList.remove("hidden");
+          } else {
+            badge.classList.add("hidden");
+          }
+        }
+
+        function renderAlerts(alerts) {
+          if (!listEl || !emptyEl) return;
+          if (!alerts || !alerts.length) {
+            listEl.innerHTML = "";
+            emptyEl.classList.remove("hidden");
+            return;
+          }
+          emptyEl.classList.add("hidden");
+          listEl.innerHTML = alerts
+            .map(function (a) {
+              var isRead = !!(a.read || a.acknowledged_at);
+              var rowClass = isRead ? "bg-slate-950/20" : "bg-rose-500/5";
+              var ackBtn = isRead
+                ? '<span class="shrink-0 text-[10px] uppercase tracking-wide text-slate-600">Read</span>'
+                : '<button type="button" class="alerts-ack shrink-0 rounded-lg border border-white/10 bg-slate-800/80 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-200 hover:border-cyan-500/40 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/40" data-id="' +
+                  String(a.id) +
+                  '">Ack</button>';
+              return (
+                '<li class="px-4 py-3 ' +
+                rowClass +
+                '">' +
+                '<div class="flex items-start justify-between gap-3">' +
+                '<div class="min-w-0 flex-1">' +
+                '<p class="font-mono text-xs font-semibold text-rose-200">' +
+                esc(a.cve_id) +
+                "</p>" +
+                '<p class="mt-1 text-xs leading-relaxed text-slate-400">' +
+                esc(a.summary || "") +
+                "</p>" +
+                '<p class="mt-1 font-mono text-[10px] text-slate-600">' +
+                esc(a.detected_at || "") +
+                "</p></div>" +
+                ackBtn +
+                "</div></li>"
+              );
+            })
+            .join("");
+
+          listEl.querySelectorAll(".alerts-ack").forEach(function (b) {
+            b.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              var id = b.getAttribute("data-id");
+              if (id) ackAlert(id);
+            });
+          });
+        }
+
+        async function loadAlerts() {
+          try {
+            var res = await fetch("/api/alerts?limit=50", { cache: "no-store" });
+            if (!res.ok) return;
+            var data = await res.json();
+            updateBadge(data.unread_count || 0);
+            renderAlerts(data.alerts || []);
+            if (lastPollEl) {
+              lastPollEl.textContent = data.last_nvd_poll ? data.last_nvd_poll : "—";
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        async function ackAlert(idStr) {
+          try {
+            var res = await fetch("/api/alerts/" + idStr + "/ack", {
+              method: "POST",
+              headers: { Accept: "application/json" },
+            });
+            if (!res.ok) return;
+            var data = await res.json();
+            updateBadge(data.unread_count != null ? data.unread_count : 0);
+            await loadAlerts();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        bell.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var willOpen = panel.classList.contains("hidden");
+          setOpen(willOpen);
+          if (willOpen) loadAlerts();
+        });
+
+        if (closeBtn) {
+          closeBtn.addEventListener("click", function () {
+            setOpen(false);
+          });
+        }
+
+        document.addEventListener("click", function (e) {
+          if (widget && !widget.contains(e.target)) setOpen(false);
+        });
+
+        loadAlerts();
+        setInterval(loadAlerts, 90000);
+      })();
+
+      (function () {
+        var container = document.getElementById("intel-graph");
+        var statusEl = document.getElementById("intel-graph-status");
+        var errEl = document.getElementById("intel-graph-error");
+        var reloadBtn = document.getElementById("intel-graph-reload-btn");
+        var rebuildBtn = document.getElementById("intel-graph-rebuild-btn");
+        var net = null;
+
+        function clearErr() {
+          if (errEl) {
+            errEl.textContent = "";
+            errEl.classList.add("hidden");
+          }
+        }
+        function showErr(msg) {
+          if (errEl) {
+            errEl.textContent = msg;
+            errEl.classList.remove("hidden");
+          }
+        }
+
+        function mount(payload) {
+          if (!container || typeof vis === "undefined") return;
+          clearErr();
+          if (net && typeof net.destroy === "function") {
+            net.destroy();
+            net = null;
+          }
+          var nodes = new vis.DataSet(payload.nodes || []);
+          var edges = new vis.DataSet(payload.edges || []);
+          var opts = {
+            physics: {
+              enabled: true,
+              barnesHut: { gravitationalConstant: -12000 },
+              stabilization: { iterations: 120, updateInterval: 25 },
+            },
+            interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true },
+            layout: { improvedLayout: true },
+            nodes: { borderWidth: 2 },
+            edges: { width: 1.2 },
+          };
+          net = new vis.Network(container, { nodes: nodes, edges: edges }, opts);
+          if (statusEl) {
+            statusEl.textContent =
+              "Rendered " +
+              (payload.nodes || []).length +
+              " node(s), " +
+              (payload.edges || []).length +
+              " edge(s)";
+            statusEl.classList.remove("hidden");
+          }
+        }
+
+        async function loadGraph() {
+          if (!container) return;
+          clearErr();
+          if (statusEl) {
+            statusEl.textContent = "Loading GET /api/graph…";
+            statusEl.classList.remove("hidden");
+          }
+          try {
+            var res = await fetch("/api/graph", { cache: "no-store" });
+            if (!res.ok) throw new Error(res.statusText || "fetch failed");
+            var data = await res.json();
+            mount(data);
+          } catch (e) {
+            showErr("Could not load graph.");
+            console.error(e);
+          }
+        }
+
+        async function rebuildGraph() {
+          if (!container) return;
+          if (rebuildBtn) {
+            rebuildBtn.disabled = true;
+            rebuildBtn.classList.add("opacity-60");
+          }
+          clearErr();
+          if (statusEl) {
+            statusEl.textContent = "POST /api/graph/rebuild…";
+            statusEl.classList.remove("hidden");
+          }
+          try {
+            var res = await fetch("/api/graph/rebuild", {
+              method: "POST",
+              headers: { Accept: "application/json" },
+            });
+            var payload = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) {
+              var det = payload.detail;
+              var msg =
+                typeof det === "string"
+                  ? det
+                  : Array.isArray(det)
+                    ? det
+                        .map(function (x) {
+                          return x.msg || JSON.stringify(x);
+                        })
+                        .join("; ")
+                  : res.statusText || "rebuild failed";
+              showErr(msg);
+              return;
+            }
+            if (statusEl) {
+              statusEl.textContent =
+                "Rebuilt " +
+                (payload.nodes_written != null ? payload.nodes_written : "?") +
+                " node(s), " +
+                (payload.edges_written != null ? payload.edges_written : "?") +
+                " edge(s)";
+            }
+            await loadGraph();
+          } catch (e) {
+            showErr("Rebuild request failed.");
+            console.error(e);
+          } finally {
+            if (rebuildBtn) {
+              rebuildBtn.disabled = false;
+              rebuildBtn.classList.remove("opacity-60");
+            }
+          }
+        }
+
+        function onReady() {
+          if (reloadBtn) reloadBtn.addEventListener("click", loadGraph);
+          if (rebuildBtn) rebuildBtn.addEventListener("click", rebuildGraph);
+          loadGraph();
+        }
+        if (typeof vis !== "undefined") {
+          onReady();
+        } else {
+          window.addEventListener("load", function () {
+            if (typeof vis === "undefined") {
+              showErr("vis-network failed to load from CDN.");
+              return;
+            }
+            onReady();
+          });
+        }
+      })();
+
+      (function () {
+        const markersG = document.getElementById("threat-map-markers");
+        const statusEl = document.getElementById("threat-map-status");
+        const errEl = document.getElementById("threat-map-error");
+        const countEl = document.getElementById("threat-map-count");
+        const btn = document.getElementById("threat-map-refresh");
+        if (!markersG) return;
+
+        function esc(s) {
+          const d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        function project(lon, lat) {
+          const w = 1000;
+          const h = 500;
+          const x = ((lon + 180) / 360) * w;
+          const y = ((90 - lat) / 180) * h;
+          return { x: x, y: y };
+        }
+
+        function severityStyle(sev) {
+          if (sev === "high") return { fill: "#fb7185", r: 7 };
+          if (sev === "medium") return { fill: "#fbbf24", r: 6 };
+          return { fill: "#34d399", r: 5 };
+        }
+
+        async function loadMarkers() {
+          if (errEl) {
+            errEl.textContent = "";
+            errEl.classList.add("hidden");
+          }
+          if (statusEl) {
+            statusEl.textContent = "Loading /api/threat-map/events…";
+            statusEl.classList.remove("hidden");
+          }
+          try {
+            const res = await fetch("/api/threat-map/events?limit=50", { cache: "no-store" });
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            const feats = data.features || [];
+            markersG.innerHTML = feats
+              .map(function (f) {
+                const geom = f.geometry || {};
+                const coords = geom.coordinates || [0, 0];
+                const lon = coords[0];
+                const lat = coords[1];
+                const props = f.properties || {};
+                const sv = severityStyle(props.severity);
+                const p = project(lon, lat);
+                const title =
+                  (props.label || "Event") +
+                  " · " +
+                  (props.country_code || "") +
+                  " · " +
+                  (props.severity || "") +
+                  (props.created_at ? " · " + props.created_at : "");
+                return (
+                  '<g class="threat-marker" tabindex="0" role="img" aria-label="' +
+                  esc(title) +
+                  '">' +
+                  '<circle cx="' +
+                  p.x +
+                  '" cy="' +
+                  p.y +
+                  '" r="' +
+                  (sv.r + 2) +
+                  '" fill="rgba(15,23,42,0.85)" opacity="0.9"></circle>' +
+                  '<circle class="transition hover:opacity-95" cx="' +
+                  p.x +
+                  '" cy="' +
+                  p.y +
+                  '" r="' +
+                  sv.r +
+                  '" fill="' +
+                  sv.fill +
+                  '" stroke="rgba(15,23,42,0.9)" stroke-width="1">' +
+                  "<title>" +
+                  esc(title) +
+                  "</title></circle></g>"
+                );
+              })
+              .join("");
+            if (countEl) {
+              countEl.textContent = feats.length ? feats.length + " marker(s)" : "No markers";
+            }
+            if (statusEl) {
+              statusEl.textContent = "Updated " + new Date().toLocaleTimeString();
+            }
+          } catch (e) {
+            if (errEl) {
+              errEl.textContent = "Could not load threat map — check API and database.";
+              errEl.classList.remove("hidden");
+            }
+            markersG.innerHTML = "";
+            if (countEl) countEl.textContent = "";
+            console.error(e);
+          }
+        }
+
+        loadMarkers();
+        if (btn) btn.addEventListener("click", loadMarkers);
+      })();
+
+      (function () {
+        const form = document.getElementById("lta-form");
+        const input = document.getElementById("lta-input");
+        const submit = document.getElementById("lta-submit");
+        const status = document.getElementById("lta-status");
+        const err = document.getElementById("lta-error");
+        const report = document.getElementById("lta-report");
+        const recentList = document.getElementById("lta-recent-list");
+
+        if (!form || !input) return;
+
+        function esc(s) {
+          const d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        function showError(msg) {
+          if (err) {
+            err.textContent = msg;
+            err.classList.remove("hidden");
+          }
+        }
+        function clearError() {
+          if (err) {
+            err.textContent = "";
+            err.classList.add("hidden");
+          }
+        }
+
+        function fillReport(data) {
+          const rep = data.report || {};
+          document.getElementById("lta-report-target").textContent = data.target_raw || "";
+          document.getElementById("lta-report-type").textContent = data.target_type || "";
+          document.getElementById("lta-report-query").textContent = data.query_used || "";
+          document.getElementById("lta-report-id").textContent = String(data.id || "");
+          var pdfA = document.getElementById("lta-download-pdf");
+          if (pdfA) {
+            if (data.id) {
+              pdfA.href = "/api/report/pdf/" + encodeURIComponent(String(data.id));
+              pdfA.setAttribute("download", "intel-report-" + String(data.id) + ".pdf");
+              pdfA.classList.remove("hidden");
+            } else {
+              pdfA.classList.add("hidden");
+              pdfA.href = "#";
+            }
+          }
+          document.getElementById("lta-report-time").textContent = data.created_at
+            ? "at " + data.created_at
+            : "";
+          document.getElementById("lta-report-summary").textContent = rep.summary || "";
+
+          const findings = document.getElementById("lta-report-findings");
+          const kf = rep.key_findings || [];
+          findings.innerHTML = kf
+            .map(function (t) {
+              return "<li>" + esc(String(t)) + "</li>";
+            })
+            .join("");
+
+          const sources = document.getElementById("lta-report-sources");
+          const src = rep.sources || [];
+          sources.innerHTML = src
+            .map(function (s) {
+              const u = s.url || "#";
+              const title = s.title || u;
+              const sn = s.snippet || "";
+              return (
+                "<li class=\"py-3 first:pt-0\">" +
+                '<a href="' +
+                esc(u) +
+                '" target="_blank" rel="noopener noreferrer" class="font-medium text-cyan-300 hover:text-cyan-200">' +
+                esc(title) +
+                "</a>" +
+                (sn
+                  ? '<p class="mt-1 text-xs leading-relaxed text-slate-500">' + esc(sn) + "</p>"
+                  : "") +
+                "</li>"
+              );
+            })
+            .join("");
+
+          report.classList.remove("hidden");
+        }
+
+        function prependRecent(data) {
+          if (!recentList) return;
+          const li = document.createElement("li");
+          li.className =
+            "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-slate-950/30 px-3 py-2 text-sm";
+          var idStr = data.id != null ? String(data.id) : "";
+          var pdf =
+            idStr ?
+              '<a href="/api/report/pdf/' +
+              encodeURIComponent(idStr) +
+              '" download="intel-report-' +
+              esc(idStr) +
+              '" class="shrink-0 rounded-md border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-300 no-underline transition hover:border-cyan-500/45 hover:bg-cyan-500/15">PDF</a>'
+            : "";
+          li.innerHTML =
+            '<span class="min-w-0 flex-1 font-mono text-slate-200">' +
+            esc(data.target_raw || "") +
+            '</span><span class="font-mono text-xs text-slate-500">' +
+            esc((data.target_type || "") + " · " + (data.created_at || "")) +
+            "</span>" +
+            pdf;
+          recentList.insertBefore(li, recentList.firstChild);
+        }
+
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          clearError();
+          const q = (input.value || "").trim();
+          if (!q) return;
+
+          submit.disabled = true;
+          submit.classList.add("opacity-60");
+          if (status) {
+            status.textContent = "Searching via Firecrawl…";
+            status.classList.remove("hidden");
+          }
+
+          try {
+            const res = await fetch("/api/analyze-target", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ target: q }),
+            });
+            const payload = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) {
+              var det = payload.detail;
+              var msg =
+                typeof det === "string"
+                  ? det
+                  : Array.isArray(det)
+                    ? det.map(function (x) {
+                        return x.msg || JSON.stringify(x);
+                      }).join("; ")
+                    : res.statusText || "Request failed";
+              showError(msg);
+              return;
+            }
+            fillReport(payload);
+            prependRecent(payload);
+            if (typeof window.__refreshExecSummary === "function") window.__refreshExecSummary();
+          } catch (ex) {
+            showError("Network error — is the server running?");
+            console.error(ex);
+          } finally {
+            submit.disabled = false;
+            submit.classList.remove("opacity-60");
+            if (status) status.classList.add("hidden");
+          }
+        });
+      })();
+
+      (function () {
+        const form = document.getElementById("cve-match-form");
+        const input = document.getElementById("cve-match-input");
+        const submit = document.getElementById("cve-match-submit");
+        const status = document.getElementById("cve-match-status");
+        const err = document.getElementById("cve-match-error");
+        const tbody = document.getElementById("cve-match-tbody");
+        const emptyHint = document.getElementById("cve-match-empty");
+        const relatedWrap = document.getElementById("cve-related-wrap");
+        const relatedList = document.getElementById("cve-related-list");
+        const useLta = document.getElementById("cve-use-lta-btn");
+        const ltaInput = document.getElementById("lta-input");
+
+        if (!form || !input || !tbody) return;
+
+        function esc(s) {
+          var d = document.createElement("div");
+          d.textContent = s;
+          return d.innerHTML;
+        }
+
+        function clearError() {
+          if (!err) return;
+          err.textContent = "";
+          err.classList.add("hidden");
+        }
+
+        function showError(msg) {
+          if (!err) return;
+          err.textContent = msg;
+          err.classList.remove("hidden");
+        }
+
+        function severityClass(sev) {
+          var u = (sev || "").toUpperCase();
+          if (u.indexOf("CRITICAL") >= 0 || u === "HIGH") return "text-rose-300 font-medium";
+          if (u === "MEDIUM") return "text-amber-300 font-medium";
+          if (u === "LOW") return "text-emerald-300 font-medium";
+          return "text-slate-400";
+        }
+
+        function renderTable(matches) {
+          if (!matches || !matches.length) {
+            tbody.innerHTML = "";
+            if (emptyHint) emptyHint.classList.remove("hidden");
+            return;
+          }
+          if (emptyHint) emptyHint.classList.add("hidden");
+          tbody.innerHTML = matches
+            .map(function (m) {
+              var id = m.cve_id || "";
+              var sev = m.severity || "—";
+              var sum = m.summary || "";
+              var src = m.source || "nvd";
+              var link =
+                "https://nvd.nist.gov/vuln/detail/" + encodeURIComponent(id);
+              return (
+                "<tr>" +
+                '<td class="px-4 py-3 font-mono text-cyan-200"><a href="' +
+                esc(link) +
+                '" target="_blank" rel="noopener noreferrer" class="hover:underline">' +
+                esc(id) +
+                "</a></td>" +
+                '<td class="px-4 py-3 font-mono text-xs ' +
+                esc(severityClass(sev)) +
+                '">' +
+                esc(sev) +
+                "</td>" +
+                '<td class="max-w-md px-4 py-3 text-sm leading-relaxed text-slate-300">' +
+                esc(sum) +
+                "</td>" +
+                '<td class="px-4 py-3 font-mono text-xs text-slate-500">' +
+                esc(src) +
+                "</td></tr>"
+              );
+            })
+            .join("");
+        }
+
+        function renderRelated(rows) {
+          if (!relatedWrap || !relatedList) return;
+          if (!rows || !rows.length) {
+            relatedWrap.classList.add("hidden");
+            relatedList.innerHTML = "";
+            return;
+          }
+          relatedWrap.classList.remove("hidden");
+          relatedList.innerHTML = rows
+            .map(function (r) {
+              return (
+                "<li class=\"font-mono text-xs\"><span class=\"text-slate-300\">#" +
+                esc(String(r.id)) +
+                '</span> · <span class="text-slate-400">' +
+                esc(r.target_raw || "") +
+                "</span> · " +
+                esc(r.created_at || "") +
+                "</li>"
+              );
+            })
+            .join("");
+        }
+
+        if (useLta && ltaInput) {
+          useLta.addEventListener("click", function () {
+            input.value = (ltaInput.value || "").trim();
+            input.focus();
+          });
+        }
+
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          clearError();
+          var q = (input.value || "").trim();
+          if (!q) return;
+
+          submit.disabled = true;
+          submit.classList.add("opacity-60");
+          if (status) {
+            status.textContent = "Contacting NVD (rate-limited)…";
+            status.classList.remove("hidden");
+          }
+          if (emptyHint) emptyHint.classList.add("hidden");
+
+          try {
+            var url = "/api/cve/match?target=" + encodeURIComponent(q);
+            var res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+            var payload = await res.json().catch(function () {
+              return {};
+            });
+            if (!res.ok) {
+              var det = payload.detail;
+              var msg =
+                typeof det === "string"
+                  ? det
+                  : Array.isArray(det)
+                    ? det
+                        .map(function (x) {
+                          return x.msg || JSON.stringify(x);
+                        })
+                        .join("; ")
+                  : res.statusText || "Request failed";
+              showError(msg);
+              tbody.innerHTML = "";
+              if (relatedWrap) relatedWrap.classList.add("hidden");
+              return;
+            }
+            renderTable(payload.matches || []);
+            renderRelated(payload.related_reports || []);
+            if (status) {
+              var n = (payload.matches || []).length;
+              var runId = payload.match_run_id != null ? " · run #" + payload.match_run_id : "";
+              status.textContent =
+                "Done — " +
+                n +
+                " row(s)" +
+                runId +
+                " · " +
+                new Date().toLocaleTimeString();
+            }
+          } catch (ex) {
+            showError("Network error — try again.");
+            tbody.innerHTML = "";
+            console.error(ex);
+          } finally {
+            submit.disabled = false;
+            submit.classList.remove("opacity-60");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

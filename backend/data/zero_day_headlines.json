@@ -1,0 +1,35 @@
+{
+  "topic": "Recent cybersecurity zero-day vulnerabilities",
+  "source_note": "Refreshed via Firecrawl MCP (firecrawl_search: web + news). API key is not stored in the repo.",
+  "updated_at": "2026-05-04",
+  "headlines": [
+    {
+      "title": "Exploitation of 'Copy Fail' Linux Vulnerability Begins",
+      "url": "https://www.securityweek.com/exploitation-of-copy-fail-linux-vulnerability-begins/"
+    },
+    {
+      "title": "CVE-2026-31431: Copy Fail vulnerability enables Linux root privilege escalation across cloud environments",
+      "url": "https://www.microsoft.com/en-us/security/blog/2026/05/01/cve-2026-31431-copy-fail-vulnerability-enables-linux-root-privilege-escalation/"
+    },
+    {
+      "title": "cPanel zero-day exploited for months before patch release (CVE-2026-41940)",
+      "url": "https://www.helpnetsecurity.com/2026/04/30/cpanel-zero-day-vulnerability-cve-2026-41940-exploited/"
+    },
+    {
+      "title": "Exploit Cyber-Frenzy Threatens Millions via Critical cPanel Vulnerability",
+      "url": "https://www.darkreading.com/threat-intelligence/exploit-cyber-frenzy-critical-cpanel-vulnerability"
+    },
+    {
+      "title": "Microsoft's patch for a 0-day exploited by Russian spies fell short. Another Windows flaw is under attack",
+      "url": "https://www.theregister.com/2026/04/29/microsoft_zero_click_exploit/"
+    },
+    {
+      "title": "Recent SolarWinds Flaws Potentially Exploited as Zero-Days",
+      "url": "https://www.securityweek.com/recent-solarwinds-flaws-potentially-exploited-as-zero-days/"
+    },
+    {
+      "title": "Nearly half of exploited zero-day flaws target enterprise-grade technology",
+      "url": "https://www.cybersecuritydive.com/news/half-exploited-zero-day-flaws-enterprise-grade-technology/814021/"
+    }
+  ]
+}
