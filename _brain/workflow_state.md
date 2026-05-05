@@ -9,7 +9,7 @@
 ## Deployment — Railway (SQLite path)
 
 - [x] **2026-05-05 — `DATA_PATH` for persistent DB** — `backend/app/db.py` resolves `osint.db` with `os.environ["DATA_PATH"]` when set (directory path; file is `<DATA_PATH>/osint.db`). If unset, defaults to `backend/data/osint.db`. The parent directory is created with `mkdir(parents=True, exist_ok=True)` in `_connect()` before `sqlite3.connect`. Legacy JSON seed path remains `backend/data/zero_day_headlines.json` (bundled with the app, not on the volume).
-- [x] **2026-05-05 — GitHub `origin` + `main`** — Local monorepo at `KM-IT-OPS` configures `remote.origin.url` → `https://github.com/KM-it-ops/osint-dashboard`; full `osint-dashboard/` tree tracked and pushed to **`origin`** branch **`main`** via `git subtree split --prefix=osint-dashboard` (GitHub repo root matches the dashboard app folder, not `_brain/` planner files).
+- [x] **2026-05-05 — GitHub `origin` + `main`** — Local monorepo at `KM-IT-OPS` sets `remote.origin.url` → `https://github.com/KM-it-ops/osint-dashboard`. The full `osint-dashboard/` tree is committed locally, then published to GitHub with `git subtree split --prefix=osint-dashboard` → branch `export-osint-main` pushed to **`origin/main`** (repo root = dashboard app; `_brain/` stays local-only). The remote had GitHub’s default **Initial commit**; push used **`--force`** once so **`main`** matches the subtree (replace template history).
 
 ---
 
