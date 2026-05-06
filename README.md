@@ -62,6 +62,8 @@ The dashboard can run **ad-hoc OSINT** on a domain or CVE: it calls **Firecrawl�
    # FIRECRAWL_API_URL=https://your-instance.example
    ```
 
+   Keep real keys in `.env` (gitignored) or your host’s secret env vars—never in tracked files.
+
 3. Restart uvicorn. Use the **Live Target Analyzer** search box on **http://127.0.0.1:8000/** .
 
 **API (for scripts):**
