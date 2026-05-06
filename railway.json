@@ -3,5 +3,8 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "/bin/sh -c 'exec python -m gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 2 --bind \"0.0.0.0:${PORT:-8000}\"'"
   }
 }
